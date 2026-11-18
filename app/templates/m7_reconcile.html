@@ -1,0 +1,74 @@
+{% extends "base.html" %}{% block content %}
+<div class="grid module-7">
+  <section class="panel panel--primary">
+    <div class="panel__head">
+      <h2>小时结清水位</h2>
+      <span class="panel__meta">M7 · 水位 {{ view.watermark or '—' }}</span>
+    </div>
+    <div class="panel__body panel__body--scroll">
+      <table class="ledger">
+        <thead><tr>
+          <th>小时桶（UTC，左闭右开）</th><th>状态</th><th>已交采集点</th><th>未交采集点</th>
+          <th class="num">暂计错误</th><th class="num">已结错误</th>
+        </tr></thead>
+        <tbody>
+        {% for row in view.hours %}
+          <tr>
+            <td>{{ row.hour }}</td>
+            <td>{% if row.status == 'SETTLED' %}<span class="badge badge--settled">已结清</span>
+                {% else %}<span class="badge badge--pending">暂计未结</span>{% endif %}</td>
+            <td>{% for p in row.delivered_points %}<span class="tag">{{ p }}</span>{% else %}—{% endfor %}</td>
+            <td>{% for p in row.missing_points %}<span class="tag tag--missing">{{ p }}</span>{% else %}—{% endfor %}</td>
+            <td class="num">{{ row.provisional_errors }}</td>
+            <td class="num">{{ row.settled_errors }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6">暂无交账数据</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="stack">
+    <section class="panel">
+      <div class="panel__head"><h2>对账概览</h2><span class="panel__meta">{{ view.points|join(' / ') }}</span></div>
+      <div class="panel__body">
+        <table class="ledger">
+          <tr><td>已结清小时</td><td class="num">{{ view.settled_hour_count }}</td></tr>
+          <tr><td>未结清小时</td><td class="num">{{ view.pending_hour_count }}</td></tr>
+          <tr><td>暂计错误总数（含未结）</td><td class="num">{{ view.provisional_error_total }}</td></tr>
+          <tr><td>已结错误总数</td><td class="num">{{ view.settled_error_total }}</td></tr>
+          <tr><td>等待日志的回执</td><td class="num">{{ view.pending_receipts|length }}</td></tr>
+          <tr><td>等待回执的日志</td><td class="num">{{ view.pending_logs|length }}</td></tr>
+        </table>
+        {% if view.pending_receipts %}
+        <p class="panel__meta">挂起回执：{% for b in view.pending_receipts %}<span class="tag tag--missing">{{ b }}</span>{% endfor %}</p>
+        {% endif %}
+        {% if not data.hours %}<p class="panel__meta">当前为演示数据，交账后展示真实库状态</p>{% endif %}
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head"><h2>交日志批次</h2><span class="panel__meta">POST /api/reconcile/logs</span></div>
+      <div class="panel__body">
+        <div class="field"><label>日志批次 JSON（batch_id 重传自动去重）</label>
+          <textarea id="log-payload">{"batch_id":"b-search-02","point":"search","hour":"2026-11-15T02:00:00Z","events":[{"timestamp":"2026-11-15T02:30:00Z","status":200}]}</textarea></div>
+        <button class="btn btn--primary" data-reconcile="log">提交日志</button>
+        <pre class="result" id="log-result">等待提交</pre>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head"><h2>交回执</h2><span class="panel__meta">POST /api/reconcile/receipts</span></div>
+      <div class="panel__body">
+        <div class="field"><label>回执 JSON（empty=true 为空批回执，单独即交齐）</label>
+          <textarea id="receipt-payload">{"batch_id":"b-search-02","point":"search","hour":"2026-11-15T02:00:00Z","empty":false}</textarea></div>
+        <button class="btn btn--primary" data-reconcile="receipt">提交回执</button>
+        <pre class="result" id="receipt-result">等待提交</pre>
+      </div>
+    </section>
+  </div>
+</div>
+<script src="/static/reconcile.js"></script>
+{% endblock %}
